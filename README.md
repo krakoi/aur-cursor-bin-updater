@@ -1,0 +1,1 @@
+# aur-cursor-bin-updater
