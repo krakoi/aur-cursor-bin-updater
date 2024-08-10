@@ -47,7 +47,7 @@ except Exception as e:
     print(f"Error: {str(e)}")
     exit(1)
 
-if latest_version != aur_version or int(local_rel) < int(aur_rel):
+if latest_version != aur_version or int(local_rel) > int(aur_rel):
     print(f'update_needed=true')
     print(f'latest_version={latest_version}')
 else:
