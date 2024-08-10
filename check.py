@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import requests
 import re
+from packaging import version
 
 def get_latest_version(url):
     headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'}
@@ -47,7 +48,7 @@ except Exception as e:
     print(f"Error: {str(e)}")
     exit(1)
 
-if latest_version != aur_version or int(local_rel) > int(aur_rel):
+if version.parse(latest_version) > version.parse(aur_version) or int(local_rel) > int(aur_rel):
     print(f'update_needed=true')
     print(f'latest_version={latest_version}')
 else:
