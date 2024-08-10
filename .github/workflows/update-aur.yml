@@ -28,7 +28,7 @@ jobs:
           python check.py >> $GITHUB_OUTPUT
 
       - name: Update PKGBUILD
-        # if: steps.check.outputs.update_needed == 'true'
+        if: steps.check.outputs.update_needed == 'true'
         run: |
           sed -i "s/pkgver=.*/pkgver=${{ steps.check.outputs.latest_version }}/" PKGBUILD
           sed -i "s/pkgrel=.*/pkgrel=1/" PKGBUILD
