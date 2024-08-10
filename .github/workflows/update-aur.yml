@@ -28,10 +28,28 @@ jobs:
           python check.py >> $GITHUB_OUTPUT
 
       - name: Update PKGBUILD
-        if: steps.check.outputs.update_needed == 'true'
+        # if: steps.check.outputs.update_needed == 'true'
         run: |
           sed -i "s/pkgver=.*/pkgver=${{ steps.check.outputs.latest_version }}/" PKGBUILD
           sed -i "s/pkgrel=.*/pkgrel=1/" PKGBUILD
+          
+          # Download the new AppImage
+          wget -O cursor-${{ steps.check.outputs.latest_version }}.AppImage https://downloader.cursor.sh/linux/appImage/x64
+          
+          # Calculate SHA256 sum
+          NEW_SHA256=$(sha256sum cursor-${{ steps.check.outputs.latest_version }}.AppImage | awk '{print $1}')
+          
+          # Update SHA256 sum in PKGBUILD
+          sed -i "s/sha256sums_x86_64=('.*'/sha256sums_x86_64=('$NEW_SHA256'/" PKGBUILD
+          
+          # Clean up downloaded file
+          rm cursor-${{ steps.check.outputs.latest_version }}.AppImage
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.KNOWN_HOSTS }}
 
       - name: Publish AUR package
         if: steps.check.outputs.update_needed == 'true'
