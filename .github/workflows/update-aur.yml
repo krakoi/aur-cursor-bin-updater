@@ -2,7 +2,7 @@ name: Update AUR Package
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Run daily at midnight UTC
+    - cron: '0 * * * *'  # Run every hour
   workflow_dispatch:
 
 jobs:
@@ -30,8 +30,11 @@ jobs:
       - name: Update PKGBUILD
         if: steps.check.outputs.update_needed == 'true'
         run: |
+          # Get local pkgrel
+          LOCAL_PKGREL=$(grep -oP 'pkgrel=\K\d+' PKGBUILD)
+          
           sed -i "s/pkgver=.*/pkgver=${{ steps.check.outputs.latest_version }}/" PKGBUILD
-          sed -i "s/pkgrel=.*/pkgrel=1/" PKGBUILD
+          sed -i "s/pkgrel=.*/pkgrel=$LOCAL_PKGREL/" PKGBUILD
           
           # Download the new AppImage
           wget -O cursor-${{ steps.check.outputs.latest_version }}.AppImage https://downloader.cursor.sh/linux/appImage/x64
