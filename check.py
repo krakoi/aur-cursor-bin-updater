@@ -48,8 +48,18 @@ except Exception as e:
     print(f"Error: {str(e)}")
     exit(1)
 
+# Compare versions and release numbers
+print(f"Debug: latest_version={latest_version}, aur_version={aur_version}, local_rel={local_rel}, aur_rel={aur_rel}")
+
 if version.parse(latest_version) > version.parse(aur_version) or int(local_rel) > int(aur_rel):
+    print(f"Debug: Update needed. Reason: {'New version' if version.parse(latest_version) > version.parse(aur_version) else 'Higher local release'}")
+    # If the latest version is newer than the AUR version,
+    # or if the local release number is higher than the AUR release number
     print(f'update_needed=true')
     print(f'latest_version={latest_version}')
 else:
+    print("Debug: No update needed.")
+    # If the AUR version is up-to-date and the local release number is not higher
     print(f'update_needed=false')
+
+print(f"Debug: Comparison results: latest > aur = {version.parse(latest_version) > version.parse(aur_version)}, local_rel > aur_rel = {int(local_rel) > int(aur_rel)}")
