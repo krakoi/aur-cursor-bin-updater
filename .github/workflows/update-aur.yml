@@ -28,18 +28,13 @@ jobs:
         id: check
         run: |
           echo "::group::Checking for updates"
-          OUTPUT=$(python check.py)
-          echo "$OUTPUT"
+          while IFS= read -r line; do
+            echo "$line"
+            if [[ $line == *"="* ]]; then
+              echo "$line" >> $GITHUB_OUTPUT
+            fi
+          done < <(python check.py)
           echo "::endgroup::"
-          
-          UPDATE_NEEDED=$(echo "$OUTPUT" | grep 'update_needed' | cut -d':' -f3)
-          LATEST_VERSION=$(echo "$OUTPUT" | grep 'latest_version' | cut -d':' -f3)
-          
-          echo "update_needed=$UPDATE_NEEDED" >> $GITHUB_OUTPUT
-          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          
-          echo "Debug - Update needed: $UPDATE_NEEDED"
-          echo "Debug - Latest version: $LATEST_VERSION"
 
       - name: Debug Output
         run: |
