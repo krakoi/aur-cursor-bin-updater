@@ -28,8 +28,21 @@ jobs:
         id: check
         run: |
           echo "::group::Checking for updates"
-          python check.py >> $GITHUB_OUTPUT
+          OUTPUT=$(python check.py)
+          echo "$OUTPUT"
           echo "::endgroup::"
+          
+          UPDATE_NEEDED=$(echo "$OUTPUT" | grep 'update_needed' | cut -d':' -f3)
+          LATEST_VERSION=$(echo "$OUTPUT" | grep 'latest_version' | cut -d':' -f3)
+          
+          echo "update_needed=$UPDATE_NEEDED" >> $GITHUB_OUTPUT
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          
+          echo "Debug - Update needed: $UPDATE_NEEDED"
+          echo "Debug - Latest version: $LATEST_VERSION"
+
+      - name: Debug Output
+        run: |
           echo "Update needed: ${{ steps.check.outputs.update_needed }}"
           echo "Latest version: ${{ steps.check.outputs.latest_version }}"
 
@@ -37,6 +50,7 @@ jobs:
         if: steps.check.outputs.update_needed == 'true'
         run: |
           echo "::group::Updating PKGBUILD"
+          echo "Update needed is true, proceeding with update"
           # Get local pkgrel
           LOCAL_PKGREL=$(grep -oP 'pkgrel=\K\d+' PKGBUILD)
           echo "Current pkgrel: $LOCAL_PKGREL"
