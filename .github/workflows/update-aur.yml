@@ -19,36 +19,47 @@ jobs:
 
       - name: Install dependencies
         run: |
+          echo "::group::Installing Python dependencies"
           python -m pip install --upgrade pip
           pip install requests packaging
+          echo "::endgroup::"
 
       - name: Check for updates
         id: check
         run: |
+          echo "::group::Checking for updates"
           python check.py >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+          echo "Update needed: ${{ steps.check.outputs.update_needed }}"
+          echo "Latest version: ${{ steps.check.outputs.latest_version }}"
 
       - name: Update PKGBUILD
         if: steps.check.outputs.update_needed == 'true'
         run: |
+          echo "::group::Updating PKGBUILD"
           # Get local pkgrel
           LOCAL_PKGREL=$(grep -oP 'pkgrel=\K\d+' PKGBUILD)
+          echo "Current pkgrel: $LOCAL_PKGREL"
           
           sed -i "s/pkgver=.*/pkgver=${{ steps.check.outputs.latest_version }}/" PKGBUILD
           sed -i "s/pkgrel=.*/pkgrel=$LOCAL_PKGREL/" PKGBUILD
           
-          # Download the new AppImage
+          echo "Downloading new AppImage..."
           wget -O cursor-${{ steps.check.outputs.latest_version }}.AppImage https://downloader.cursor.sh/linux/appImage/x64
           
-          # Calculate SHA256 sum
+          echo "Calculating SHA256 sum..."
           NEW_SHA256=$(sha256sum cursor-${{ steps.check.outputs.latest_version }}.AppImage | awk '{print $1}')
+          echo "New SHA256: $NEW_SHA256"
           
-          # Update SHA256 sum in PKGBUILD
+          echo "Updating SHA256 sum in PKGBUILD..."
           sed -i "s/sha256sums_x86_64=('.*'/sha256sums_x86_64=('$NEW_SHA256'/" PKGBUILD
           
-          # Clean up downloaded file
+          echo "Cleaning up downloaded file..."
           rm cursor-${{ steps.check.outputs.latest_version }}.AppImage
+          echo "::endgroup::"
 
       - name: Install SSH Key
+        if: steps.check.outputs.update_needed == 'true'
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
@@ -67,3 +78,15 @@ jobs:
           commit_message: "Update to version ${{ steps.check.outputs.latest_version }}"
           allow_empty_commits: false
           ssh_keyscan_types: rsa,ecdsa,ed25519
+
+      - name: Summary
+        run: |
+          echo "::group::Workflow Summary"
+          echo "Update needed: ${{ steps.check.outputs.update_needed }}"
+          echo "Latest version: ${{ steps.check.outputs.latest_version }}"
+          if [ "${{ steps.check.outputs.update_needed }}" == "true" ]; then
+            echo "PKGBUILD updated and published to AUR"
+          else
+            echo "No update was necessary"
+          fi
+          echo "::endgroup::"
