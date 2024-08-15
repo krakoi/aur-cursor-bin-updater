@@ -45,22 +45,13 @@ try:
     latest_version = get_latest_version(url)
     aur_version, aur_rel = get_aur_version(aur_url)
     local_version, local_rel = get_local_pkgbuild_info()
+
+    if version.parse(latest_version) > version.parse(aur_version) or int(local_rel) > int(aur_rel):
+        print(f'::set-output name=update_needed::true')
+        print(f'::set-output name=latest_version::{latest_version}')
+    else:
+        print(f'::set-output name=update_needed::false')
+
 except Exception as e:
-    print(f"Error: {str(e)}")
-    exit(1)
-
-# Compare versions and release numbers
-print(f"Debug: latest_version={latest_version}, aur_version={aur_version}, local_rel={local_rel}, aur_rel={aur_rel}", file=sys.stderr)
-
-if version.parse(latest_version) > version.parse(aur_version) or int(local_rel) > int(aur_rel):
-    print(f"Debug: Update needed. Reason: {'New version' if version.parse(latest_version) > version.parse(aur_version) else 'Higher local release'}", file=sys.stderr)
-    # If the latest version is newer than the AUR version,
-    # or if the local release number is higher than the AUR release number
-    print(f'::set-output name=update_needed::true')
-    print(f'::set-output name=latest_version::{latest_version}')
-else:
-    print("Debug: No update needed.", file=sys.stderr)
-    # If the AUR version is up-to-date and the local release number is not higher
-    print(f'::set-output name=update_needed::false')
-
-print(f"Debug: Comparison results: latest > aur = {version.parse(latest_version) > version.parse(aur_version)}, local_rel > aur_rel = {int(local_rel) > int(aur_rel)}", file=sys.stderr)
+    print(f"::error::Error: {str(e)}")
+    sys.exit(1)
