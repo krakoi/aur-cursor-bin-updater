@@ -50,7 +50,9 @@ jobs:
           LOCAL_PKGREL=$(grep -oP 'pkgrel=\K\d+' PKGBUILD)
           echo "Current pkgrel: $LOCAL_PKGREL"
           
+          echo "Updating pkgver to ${{ steps.check.outputs.latest_version }}"
           sed -i "s/pkgver=.*/pkgver=${{ steps.check.outputs.latest_version }}/" PKGBUILD
+          echo "Updating pkgrel to $LOCAL_PKGREL"
           sed -i "s/pkgrel=.*/pkgrel=$LOCAL_PKGREL/" PKGBUILD
           
           echo "Downloading new AppImage..."
@@ -61,10 +63,16 @@ jobs:
           echo "New SHA256: $NEW_SHA256"
           
           echo "Updating SHA256 sum in PKGBUILD..."
+          OLD_SHA256=$(grep -oP "sha256sums_x86_64=\('\K[^']+" PKGBUILD)
+          echo "Old SHA256: $OLD_SHA256"
           sed -i "s/sha256sums_x86_64=('.*'/sha256sums_x86_64=('$NEW_SHA256'/" PKGBUILD
+          echo "SHA256 updated from $OLD_SHA256 to $NEW_SHA256"
           
           echo "Cleaning up downloaded file..."
           rm cursor-${{ steps.check.outputs.latest_version }}.AppImage
+          
+          echo "Final PKGBUILD contents:"
+          cat PKGBUILD
           echo "::endgroup::"
 
       - name: Install SSH Key
