@@ -61,6 +61,7 @@ try:
     print(f"::debug::AUR version: {aur_version}, release: {aur_rel}")
     print(f"::debug::Local version: {local_version}, release: {local_rel}")
 
+
     if version.parse(latest_version) > version.parse(aur_version) or int(local_rel) > int(aur_rel):
         print(f'update_needed=true')
         print(f'latest_version={latest_version}')
