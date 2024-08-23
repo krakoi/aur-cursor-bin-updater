@@ -21,9 +21,11 @@ def update_pkgbuild(latest_version, current_version, current_rel):
     # Update pkgver
     pkgbuild = re.sub(r'pkgver=.*', f'pkgver={latest_version}', pkgbuild)
 
-    # Update pkgrel
-    new_rel = 1 if latest_version != current_version else int(current_rel) + 1
-    pkgbuild = re.sub(r'pkgrel=\d+', f'pkgrel={new_rel}', pkgbuild)
+    # Update pkgrel only if version has changed
+    if latest_version != current_version:
+        pkgbuild = re.sub(r'pkgrel=\d+', 'pkgrel=1', pkgbuild)
+    else:
+        debug_print("Version unchanged, pkgrel not updated")
 
     debug_print(f"Downloading AppImage for version {latest_version}")
     # Download new AppImage
