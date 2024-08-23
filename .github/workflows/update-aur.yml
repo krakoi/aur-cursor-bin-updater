@@ -67,10 +67,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get or create release
+      - name: Create or Update Release
+        if: fromJson(steps.check.outputs.check_output).update_needed
         id: release
         uses: softprops/action-gh-release@v1
-        if: fromJson(steps.check.outputs.check_output).update_needed
         with:
           tag_name: v${{ fromJson(steps.check.outputs.check_output).latest_version }}
           name: Release ${{ fromJson(steps.check.outputs.check_output).latest_version }}
