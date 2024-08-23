@@ -63,13 +63,14 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add PKGBUILD
           git commit -m "Update PKGBUILD to version ${{ fromJson(steps.check.outputs.check_output).latest_version }}"
-          git push "https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:${{ github.ref }}
+          git push "https://x-access-token:${{ secrets.PAT }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
         if: fromJson(steps.check.outputs.check_output).update_needed
         id: create_release
+        continue-on-error: true
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -79,8 +80,15 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Check Release Creation
+        if: steps.create_release.outcome == 'failure'
+        run: |
+          echo "Release already exists or creation failed. Skipping asset upload."
+          echo "release_created=false" >> $GITHUB_OUTPUT
+        id: check_release
+
       - name: Upload Release Asset
-        if: fromJson(steps.check.outputs.check_output).update_needed
+        if: fromJson(steps.check.outputs.check_output).update_needed && steps.check_release.outputs.release_created != 'false'
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
