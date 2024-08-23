@@ -69,6 +69,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fetch release list
+        id: fetch-releases
+        run: |
+          releases=$(gh api repos/${{ github.repository }}/releases --paginate | jq -r '.[].id')
+          echo "releases=$releases" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove old releases
+        if: fromJson(steps.check.outputs.check_output).update_needed
+        run: |
+          releases=(${{ steps.fetch-releases.outputs.releases }})
+          keep=5
+          if [ ${#releases[@]} -gt $keep ]; then
+            for release in "${releases[@]:$keep}"; do
+              gh api -X DELETE repos/${{ github.repository }}/releases/$release
+              echo "Deleted release $release"
+            done
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Print Release URL
         if: fromJson(steps.check.outputs.check_output).update_needed
         run: |
