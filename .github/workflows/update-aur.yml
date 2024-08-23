@@ -63,7 +63,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add PKGBUILD
           git commit -m "Update PKGBUILD to version ${{ fromJson(steps.check.outputs.check_output).latest_version }}"
-          git push "https://x-access-token:${{ secrets.PAT }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref }}
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -100,7 +100,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Print Artifact Link
-        if: fromJson(steps.check.outputs.check_output).update_needed
+        if: fromJson(steps.check.outputs.check_output).update_needed && steps.check_release.outputs.release_created != 'false'
         run: |
           echo "Artifact uploaded successfully!"
           echo "Download URL: ${{ steps.upload-release-asset.outputs.browser_download_url }}"
