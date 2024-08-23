@@ -12,6 +12,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Set DEBUG environment variable
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
+            echo "DEBUG=true" >> $GITHUB_ENV
+          else
+            echo "DEBUG=false" >> $GITHUB_ENV
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -28,51 +36,22 @@ jobs:
         id: check
         run: |
           echo "::group::Checking for updates"
-          while IFS= read -r line; do
-            echo "$line"
-            if [[ $line == *"="* ]]; then
-              echo "$line" >> $GITHUB_OUTPUT
-            fi
-          done < <(python check.py)
+          python check.py
+          echo "check_output<<EOF" >> $GITHUB_OUTPUT
+          cat check_output.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           echo "::endgroup::"
 
       - name: Debug Output
         run: |
-          echo "Update needed: ${{ steps.check.outputs.update_needed }}"
-          echo "Latest version: ${{ steps.check.outputs.latest_version }}"
+          echo "Check output: ${{ steps.check.outputs.check_output }}"
+          echo "DEBUG: $DEBUG"
 
       - name: Update PKGBUILD
-        if: steps.check.outputs.update_needed == 'true'
+        if: fromJson(steps.check.outputs.check_output).update_needed
         run: |
           echo "::group::Updating PKGBUILD"
-          echo "Update needed is true, proceeding with update"
-          # Get local pkgrel
-          LOCAL_PKGREL=$(grep -oP 'pkgrel=\K\d+' PKGBUILD)
-          echo "Current pkgrel: $LOCAL_PKGREL"
-          
-          echo "Updating pkgver to ${{ steps.check.outputs.latest_version }}"
-          sed -i "s/pkgver=.*/pkgver=${{ steps.check.outputs.latest_version }}/" PKGBUILD
-          echo "Updating pkgrel to $LOCAL_PKGREL"
-          sed -i "s/pkgrel=.*/pkgrel=$LOCAL_PKGREL/" PKGBUILD
-          
-          echo "Downloading new AppImage..."
-          wget -O cursor-${{ steps.check.outputs.latest_version }}.AppImage https://downloader.cursor.sh/linux/appImage/x64
-          
-          echo "Calculating SHA256 sum..."
-          NEW_SHA256=$(sha256sum cursor-${{ steps.check.outputs.latest_version }}.AppImage | awk '{print $1}')
-          echo "New SHA256: $NEW_SHA256"
-          
-          echo "Updating SHA256 sum in PKGBUILD..."
-          OLD_SHA256=$(grep -oP "sha256sums_x86_64=\('\K[^']+" PKGBUILD)
-          echo "Old SHA256: $OLD_SHA256"
-          sed -i "s/sha256sums_x86_64=('.*'/sha256sums_x86_64=('$NEW_SHA256'/" PKGBUILD
-          echo "SHA256 updated from $OLD_SHA256 to $NEW_SHA256"
-          
-          echo "Cleaning up downloaded file..."
-          rm cursor-${{ steps.check.outputs.latest_version }}.AppImage
-          
-          echo "Final PKGBUILD contents:"
-          cat PKGBUILD
+          python update_pkgbuild.py check_output.json
           echo "::endgroup::"
 
       - name: Check if development branch
