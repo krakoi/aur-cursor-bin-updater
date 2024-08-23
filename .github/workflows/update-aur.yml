@@ -89,16 +89,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check if development branch
+      - name: Check branch and continue or stop workflow
         if: fromJson(steps.check.outputs.check_output).update_needed
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
             echo "On development branch, stopping workflow"
             exit 0
+          else
+            echo "On main branch, continuing workflow"
           fi
 
       - name: Install SSH Key
-        if: steps.check.outputs.update_needed == 'true' && github.ref != 'refs/heads/development'
+        if: fromJson(steps.check.outputs.check_output).update_needed && github.ref != 'refs/heads/development'
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
@@ -106,7 +108,7 @@ jobs:
           if_key_exists: replace
 
       - name: Publish AUR package
-        if: steps.check.outputs.update_needed == 'true' && github.ref != 'refs/heads/development'
+        if: fromJson(steps.check.outputs.check_output).update_needed && github.ref != 'refs/heads/development'
         uses: KSXGitHub/github-actions-deploy-aur@v2.7.2
         with:
           pkgname: cursor-bin
@@ -114,17 +116,16 @@ jobs:
           commit_username: ${{ secrets.AUR_USERNAME }}
           commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: "Update to version ${{ steps.check.outputs.latest_version }}"
+          commit_message: "Update to version ${{ fromJson(steps.check.outputs.check_output).latest_version }}"
           allow_empty_commits: false
           ssh_keyscan_types: rsa,ecdsa,ed25519
 
       - name: Summary
-        if: github.ref != 'refs/heads/development'
         run: |
           echo "::group::Workflow Summary"
-          echo "Update needed: ${{ steps.check.outputs.update_needed }}"
-          echo "Latest version: ${{ steps.check.outputs.latest_version }}"
-          if [ "${{ steps.check.outputs.update_needed }}" == "true" ]; then
+          echo "Update needed: ${{ fromJson(steps.check.outputs.check_output).update_needed }}"
+          echo "Latest version: ${{ fromJson(steps.check.outputs.check_output).latest_version }}"
+          if [ "${{ fromJson(steps.check.outputs.check_output).update_needed }}" == "true" ]; then
             echo "PKGBUILD updated and published to AUR"
           else
             echo "No update was necessary"
