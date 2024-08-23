@@ -67,43 +67,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Release
+      - name: Get or create release
+        id: release
+        uses: softprops/action-gh-release@v1
         if: fromJson(steps.check.outputs.check_output).update_needed
-        id: create_release
-        continue-on-error: true
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ fromJson(steps.check.outputs.check_output).latest_version }}
-          release_name: Release ${{ fromJson(steps.check.outputs.check_output).latest_version }}
+          name: Release ${{ fromJson(steps.check.outputs.check_output).latest_version }}
           draft: false
           prerelease: false
-
-      - name: Check Release Creation
-        if: steps.create_release.outcome == 'failure'
-        run: |
-          echo "Release already exists or creation failed. Skipping asset upload."
-          echo "release_created=false" >> $GITHUB_OUTPUT
-        id: check_release
-
-      - name: Upload Release Asset
-        if: fromJson(steps.check.outputs.check_output).update_needed && steps.check_release.outputs.release_created != 'false'
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
+          files: ./cursor-${{ fromJson(steps.check.outputs.check_output).latest_version }}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./cursor-${{ fromJson(steps.check.outputs.check_output).latest_version }}.AppImage
-          asset_name: cursor-${{ fromJson(steps.check.outputs.check_output).latest_version }}.AppImage
-          asset_content_type: application/octet-stream
 
-      - name: Print Artifact Link
-        if: fromJson(steps.check.outputs.check_output).update_needed && steps.check_release.outputs.release_created != 'false'
+      - name: Print Release URL
+        if: fromJson(steps.check.outputs.check_output).update_needed
         run: |
-          echo "Artifact uploaded successfully!"
-          echo "Download URL: ${{ steps.upload-release-asset.outputs.browser_download_url }}"
+          echo "Release URL: ${{ steps.release.outputs.url }}"
+          echo "Download URL: ${{ steps.release.outputs.assets[0].browser_download_url }}"
 
       - name: Check if development branch
         if: fromJson(steps.check.outputs.check_output).update_needed
