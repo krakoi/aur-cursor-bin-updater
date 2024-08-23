@@ -35,7 +35,7 @@ def update_pkgbuild(latest_version, current_version, current_rel):
     debug_print(f"New SHA256: {new_sha256}")
 
     # Update source URL in PKGBUILD to point to our repository
-    artifact_url = f"https://github.com/Gunther-Schulz/aur-cursor-bin-updater/releases/download/v{latest_version}/cursor-{latest_version}.AppImage"
+    artifact_url = f"https://github.com/Gunther-Schulz/aur-cursor-bin-updater/releases/download/v${{pkgver}}/cursor-${{pkgver}}.AppImage"
     debug_print(f"New artifact URL: {artifact_url}")
     
     # Update source_x86_64
