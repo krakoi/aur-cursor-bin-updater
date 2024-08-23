@@ -3,6 +3,8 @@ import requests
 import re
 from packaging import version
 import sys
+import os
+import json
 
 def get_latest_version(url):
     headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'}
@@ -45,6 +47,9 @@ url = 'https://downloader.cursor.sh/linux/appImage/x64'
 aur_url = 'https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=cursor-bin'
 
 try:
+    # Check if DEBUG is set to true
+    debug_mode = os.environ.get('DEBUG', '').lower() == 'true'
+
     latest_version = get_latest_version(url)
     if latest_version is None:
         raise ValueError("Failed to get latest version")
@@ -61,13 +66,21 @@ try:
     print(f"::debug::AUR version: {aur_version}, release: {aur_rel}")
     print(f"::debug::Local version: {local_version}, release: {local_rel}")
 
+    update_needed = debug_mode or version.parse(latest_version) > version.parse(aur_version) or int(local_rel) > int(aur_rel)
 
-    if version.parse(latest_version) > version.parse(aur_version) or int(local_rel) > int(aur_rel):
-        print(f'update_needed=true')
-        print(f'latest_version={latest_version}')
-    else:
-        print(f'update_needed=false')
-        print(f'latest_version={latest_version}')
+    # Create output as JSON
+    output = {
+        "update_needed": update_needed,
+        "latest_version": latest_version,
+        "current_version": local_version,
+        "current_rel": local_rel
+    }
+
+    # Write JSON to file
+    with open('check_output.json', 'w') as f:
+        json.dump(output, f)
+
+    print(f"::debug::Check output written to check_output.json")
 
 except Exception as e:
     print(f"::error::Error in main execution: {str(e)}")
