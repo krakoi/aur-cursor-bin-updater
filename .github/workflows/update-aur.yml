@@ -59,11 +59,13 @@ jobs:
       - name: Commit changes
         if: fromJson(steps.check.outputs.check_output).update_needed
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git add PKGBUILD
           git commit -m "Update PKGBUILD to version ${{ fromJson(steps.check.outputs.check_output).latest_version }}"
           git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
         if: fromJson(steps.check.outputs.check_output).update_needed
