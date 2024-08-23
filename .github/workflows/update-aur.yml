@@ -53,9 +53,34 @@ jobs:
           echo "::group::Updating PKGBUILD"
           python update_pkgbuild.py check_output.json
           echo "::endgroup::"
+          echo "Final PKGBUILD content:"
+          cat PKGBUILD
+
+      - name: Create Release
+        if: fromJson(steps.check.outputs.check_output).update_needed
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ fromJson(steps.check.outputs.check_output).latest_version }}
+          release_name: Release ${{ fromJson(steps.check.outputs.check_output).latest_version }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        if: fromJson(steps.check.outputs.check_output).update_needed
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./cursor-${{ fromJson(steps.check.outputs.check_output).latest_version }}.AppImage
+          asset_name: cursor-${{ fromJson(steps.check.outputs.check_output).latest_version }}.AppImage
+          asset_content_type: application/octet-stream
 
       - name: Check if development branch
-        if: steps.check.outputs.update_needed == 'true'
+        if: fromJson(steps.check.outputs.check_output).update_needed
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
             echo "On development branch, stopping workflow"
