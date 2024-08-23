@@ -1,7 +1,7 @@
 # Maintainer: Your Name <your.email@example.com>
 
 pkgname=cursor-bin
-pkgver=0.39.8
+pkgver=0.39.6
 pkgrel=18
 pkgdesc="Cursor App - AI-first coding environment"
 arch=('x86_64')

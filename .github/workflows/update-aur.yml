@@ -37,9 +37,7 @@ jobs:
         run: |
           echo "::group::Checking for updates"
           python check.py
-          echo "check_output<<EOF" >> $GITHUB_OUTPUT
-          cat check_output.json >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "check_output=$(cat check_output.json | jq -c .)" >> $GITHUB_OUTPUT
           echo "::endgroup::"
 
       - name: Debug Output
