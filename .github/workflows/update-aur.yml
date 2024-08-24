@@ -57,9 +57,12 @@ jobs:
 
       - name: Exit workflow if no update needed
         if: steps.update_needed.outputs.update_needed == 'false'
-        run: exit 1
+        run: |
+          echo "No update needed. Exiting workflow successfully."
+          exit 0
 
       - name: Update PKGBUILD
+        if: steps.update_needed.outputs.update_needed == 'true'
         env:
           DEBUG: ${{ env.DEBUG }}
         run: |
@@ -70,6 +73,7 @@ jobs:
           cat PKGBUILD
 
       - name: Commit changes
+        if: steps.update_needed.outputs.update_needed == 'true'
         run: |
           # Clean up untracked files
           git clean -fd
