@@ -48,12 +48,12 @@ def get_aur_pkgbuild_info(url):
     response.raise_for_status()
     pkgbuild_content = response.text
     
-    version_match = re.search(r'pkgver=(\d+\.\d+\.\d+)', pkgbuild_content)
+    version_match = re.search(r'pkgver=([^\n]+)', pkgbuild_content)
     rel_match = re.search(r'pkgrel=(\d+)', pkgbuild_content)
     source_match = re.search(r'source_x86_64=\("([^"]+)"', pkgbuild_content)
     
     if version_match and rel_match and source_match:
-        version = version_match.group(1)
+        version = version_match.group(1).strip()
         rel = rel_match.group(1)
         source = source_match.group(1)
         
@@ -68,10 +68,10 @@ def get_aur_pkgbuild_info(url):
 def get_local_pkgbuild_info():
     with open('PKGBUILD', 'r') as file:
         content = file.read()
-    version_match = re.search(r'pkgver=(\d+\.\d+\.\d+)', content)
+    version_match = re.search(r'pkgver=([^\n]+)', content)
     rel_match = re.search(r'pkgrel=(\d+)', content)
     if version_match and rel_match:
-        return version_match.group(1), rel_match.group(1)
+        return version_match.group(1).strip(), rel_match.group(1)
     else:
         print(f"::error::Unable to find current version or release in local PKGBUILD")
         return None, None
