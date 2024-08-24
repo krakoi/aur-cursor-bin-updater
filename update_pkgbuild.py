@@ -11,6 +11,13 @@ def debug_print(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)
 
+def calculate_sha256(file_path):
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
+
 def update_pkgbuild(pkgbuild, json_data):
     download_link = json_data['download_link']
     new_version = json_data['new_version']
@@ -22,25 +29,55 @@ def update_pkgbuild(pkgbuild, json_data):
     # Update pkgrel
     pkgbuild = re.sub(r'pkgrel=\d+', f'pkgrel={new_rel}', pkgbuild)
 
-    # Update source
-    pkgbuild = re.sub(r'source=\(".*"\)', f'source=("{download_link}")', pkgbuild)
+    # Update source_x86_64 and add cursor.png
+    pkgbuild = re.sub(r'source_x86_64=\(".*"', f'source_x86_64=("{download_link}" "cursor.png"', pkgbuild)
 
-    # Update sha256sums
-    sha256sum = calculate_sha256(download_link)
-    pkgbuild = re.sub(r'sha256sums=\(".*"\)', f'sha256sums=("{sha256sum}")', pkgbuild)
+    # Update noextract
+    pkgbuild = re.sub(r'noextract=\(".*"\)', 'noextract=("$(basename ${source_x86_64[0]})")', pkgbuild)
+
+    # Calculate SHA256 sums
+    appimage_sha256 = calculate_sha256(os.path.basename(download_link))
+    cursor_png_sha256 = calculate_sha256("cursor.png")
+
+    # Update sha256sums_x86_64
+    pkgbuild = re.sub(r'sha256sums_x86_64=\(.*\)', f"sha256sums_x86_64=('{appimage_sha256}' '{cursor_png_sha256}')", pkgbuild)
+
+    # Replace the entire package() function
+    new_package_function = r'''
+package() {
+    install -Dm755 "${srcdir}/$(basename ${source_x86_64[0]})" "${pkgdir}/opt/${pkgname}/${pkgname}.AppImage"
+
+    # Symlink executable to be called 'cursor'
+    mkdir -p "${pkgdir}/usr/bin"
+    ln -s "/opt/${pkgname}/${pkgname}.AppImage" "${pkgdir}/usr/bin/cursor"
+
+    # Install the icon
+    install -Dm644 "${srcdir}/cursor.png" "${pkgdir}/usr/share/icons/hicolor/512x512/apps/cursor.png"
+
+    # Create a .desktop Entry
+    mkdir -p "${pkgdir}/usr/share/applications"
+    cat <<EOF > "${pkgdir}/usr/share/applications/cursor.desktop"
+[Desktop Entry]
+Name=Cursor
+Exec=/usr/bin/cursor --no-sandbox %U
+Terminal=false
+Type=Application
+Icon=cursor
+StartupWMClass=cursor-url-handler
+X-AppImage-Version=${pkgver}
+MimeType=x-scheme-handler/cursor;
+Categories=Utility;
+EOF
+}
+'''
+    # Replace everything from package() to the end of the file
+    pkgbuild = re.sub(r'package\(\) \{.*', new_package_function.strip(), pkgbuild, flags=re.DOTALL)
+
+    # Add post_install() function if it doesn't exist
+    if 'post_install()' not in pkgbuild:
+        pkgbuild += '\n\npost_install() {\n    update-desktop-database -q\n    xdg-icon-resource forceupdate\n}'
 
     return pkgbuild
-
-def calculate_sha256(download_link):
-    appimage_filename = os.path.basename(download_link)
-    debug_print(f"Downloading file: {appimage_filename}")
-    subprocess.run(['wget', '-O', appimage_filename, download_link], check=True)
-
-    debug_print("Calculating SHA256 sum")
-    with open(appimage_filename, 'rb') as f:
-        new_sha256 = hashlib.sha256(f.read()).hexdigest()
-    debug_print(f"SHA256 sum: {new_sha256}")
-    return new_sha256
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
