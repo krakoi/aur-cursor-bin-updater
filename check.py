@@ -28,13 +28,24 @@ def get_download_link():
     print(f"::debug::Data: {json.dumps(data, indent=2)}")
     
     try:
+        print("::debug::Sending request to get download link")
         response = requests.post(url, headers=headers, json=data)
+        print(f"::debug::Request sent. Waiting for response...")
         print(f"::debug::Response status code: {response.status_code}")
         print(f"::debug::Response headers: {json.dumps(dict(response.headers), indent=2)}")
-        print(f"::debug::Response content: {response.text}")
         
-        response.raise_for_status()
+        content_length = int(response.headers.get('Content-Length', 0))
+        print(f"::debug::Expected content length: {content_length} bytes")
+        
+        print("::debug::Starting to receive response content...")
+        content = response.text
+        print(f"::debug::Received content length: {len(content)} bytes")
+        print(f"::debug::First 100 characters of content: {content[:100]}")
+        
+        print("::debug::Parsing JSON response...")
         response_json = response.json()
+        print("::debug::JSON parsed successfully")
+        
         download_url = response_json.get('cachedDownloadLink') or response_json.get('url')
         if not download_url:
             print("::error::Download URL not found in response")
@@ -48,12 +59,12 @@ def get_aur_pkgbuild_info(url):
     response.raise_for_status()
     pkgbuild_content = response.text
     
-    version_match = re.search(r'pkgver=(\d+\.\d+\.\d+)', pkgbuild_content)
+    version_match = re.search(r'pkgver=([^\n]+)', pkgbuild_content)
     rel_match = re.search(r'pkgrel=(\d+)', pkgbuild_content)
     source_match = re.search(r'source_x86_64=\("([^"]+)"', pkgbuild_content)
     
     if version_match and rel_match and source_match:
-        version = version_match.group(1)
+        version = version_match.group(1).strip()
         rel = rel_match.group(1)
         source = source_match.group(1)
         
@@ -68,10 +79,10 @@ def get_aur_pkgbuild_info(url):
 def get_local_pkgbuild_info():
     with open('PKGBUILD', 'r') as file:
         content = file.read()
-    version_match = re.search(r'pkgver=(\d+\.\d+\.\d+)', content)
+    version_match = re.search(r'pkgver=([^\n]+)', content)
     rel_match = re.search(r'pkgrel=(\d+)', content)
     if version_match and rel_match:
-        return version_match.group(1), rel_match.group(1)
+        return version_match.group(1).strip(), rel_match.group(1)
     else:
         print(f"::error::Unable to find current version or release in local PKGBUILD")
         return None, None
@@ -103,15 +114,32 @@ try:
 
     update_needed = debug_mode or download_link != aur_source or int(local_rel) > int(aur_rel)
 
+    # Extract new version from download_link
+    new_version_match = re.search(r'cursor-(\d+\.\d+\.\d+)', download_link)
+    new_version = new_version_match.group(1) if new_version_match else None
+
+    # Determine new_rel
+    if update_needed:
+        if download_link != aur_source and new_version == aur_version:
+            new_rel = str(int(aur_rel) + 1)
+        else:
+            new_rel = "1"
+    else:
+        new_rel = aur_rel
+
+    print(f"::debug::New version: {new_version}, new release: {new_rel}")
+
     # Create output as JSON
     output = {
         "update_needed": update_needed,
-        "current_version": local_version,
-        "current_rel": local_rel,
+        "local_version": local_version,
+        "local_rel": local_rel,
         "aur_version": aur_version,
         "aur_rel": aur_rel,
         "download_link": download_link,
-        "aur_source": aur_source
+        "aur_source": aur_source,
+        "new_version": new_version,
+        "new_rel": new_rel
     }
 
     # Write JSON to file
@@ -119,6 +147,7 @@ try:
         json.dump(output, f)
 
     print(f"::debug::Check output written to check_output.json")
+    print(f"::debug::Final new_version: {new_version}, new_rel: {new_rel}")
 
 except Exception as e:
     print(f"::error::Error in main execution: {str(e)}")
