@@ -55,11 +55,9 @@ jobs:
             echo "update_needed=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Exit workflow if no update needed
+      - name: Notify if no update needed
         if: steps.update_needed.outputs.update_needed == 'false'
-        run: |
-          echo "No update needed. Exiting workflow successfully."
-          exit 0
+        run: echo "No update needed."
 
       - name: Update PKGBUILD
         if: steps.update_needed.outputs.update_needed == 'true'
