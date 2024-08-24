@@ -87,6 +87,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check branch and continue or stop workflow
+        if: steps.update_needed.outputs.update_needed == 'true'
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
             echo "On development branch, stopping workflow"
@@ -96,7 +97,7 @@ jobs:
           fi
 
       - name: Install SSH Key
-        if: github.ref != 'refs/heads/development'
+        if: steps.update_needed.outputs.update_needed == 'true' && github.ref != 'refs/heads/development'
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
@@ -104,7 +105,7 @@ jobs:
           if_key_exists: replace
 
       - name: Publish AUR package
-        if: github.ref != 'refs/heads/development'
+        if: steps.update_needed.outputs.update_needed == 'true' && github.ref != 'refs/heads/development'
         uses: KSXGitHub/github-actions-deploy-aur@v2.7.2
         with:
           pkgname: cursor-bin
