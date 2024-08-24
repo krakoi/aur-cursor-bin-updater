@@ -4,6 +4,7 @@ import subprocess
 import hashlib
 import json
 import os
+from packaging import version
 
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
@@ -12,6 +13,10 @@ def debug_print(*args, **kwargs):
         print(*args, **kwargs)
 
 def update_pkgbuild(latest_version, current_version, current_rel):
+    if version.parse(latest_version) <= version.parse(current_version):
+        debug_print(f"No update needed. Current version {current_version} is not lower than latest version {latest_version}.")
+        return
+
     debug_print(f"Updating PKGBUILD from version {current_version} to {latest_version}")
 
     # Read the current PKGBUILD
@@ -21,11 +26,8 @@ def update_pkgbuild(latest_version, current_version, current_rel):
     # Update pkgver
     pkgbuild = re.sub(r'pkgver=.*', f'pkgver={latest_version}', pkgbuild)
 
-    # Update pkgrel only if version has changed
-    if latest_version != current_version:
-        pkgbuild = re.sub(r'pkgrel=\d+', 'pkgrel=1', pkgbuild)
-    else:
-        debug_print("Version unchanged, pkgrel not updated")
+    # Reset pkgrel to 1 since we have a new version
+    pkgbuild = re.sub(r'pkgrel=\d+', 'pkgrel=1', pkgbuild)
 
     debug_print(f"Downloading AppImage for version {latest_version}")
     # Download new AppImage
