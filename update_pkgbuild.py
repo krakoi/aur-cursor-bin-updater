@@ -4,7 +4,6 @@ import subprocess
 import hashlib
 import json
 import os
-from packaging import version
 
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
@@ -14,27 +13,14 @@ def debug_print(*args, **kwargs):
 
 def update_pkgbuild(pkgbuild, json_data):
     download_link = json_data['download_link']
-    aur_source = json_data['aur_source']
-    aur_rel = int(json_data['aur_rel'])
-
-    # Extract version from download_link
-    version_match = re.search(r'cursor-(\d+\.\d+\.\d+)', download_link)
-    if not version_match:
-        raise ValueError(f"Unable to extract version from download link: {download_link}")
-    latest_version = version_match.group(1)
+    new_version = json_data['new_version']
+    new_rel = json_data['new_rel']
 
     # Update pkgver
-    pkgbuild = re.sub(r'pkgver=.*', f'pkgver={latest_version}', pkgbuild)
+    pkgbuild = re.sub(r'pkgver=.*', f'pkgver={new_version}', pkgbuild)
 
-    # Reset pkgrel to 1 if download_link and aur_source are different
-    if download_link != aur_source:
-        new_pkgrel = 1
-    else:
-        # Increment pkgrel
-        new_pkgrel = aur_rel + 1
-
-    # Update pkgrel in PKGBUILD
-    pkgbuild = re.sub(r'pkgrel=\d+', f'pkgrel={new_pkgrel}', pkgbuild)
+    # Update pkgrel
+    pkgbuild = re.sub(r'pkgrel=\d+', f'pkgrel={new_rel}', pkgbuild)
 
     # Update source
     pkgbuild = re.sub(r'source=\(".*"\)', f'source=("{download_link}")', pkgbuild)
@@ -47,10 +33,13 @@ def update_pkgbuild(pkgbuild, json_data):
 
 def calculate_sha256(download_link):
     appimage_filename = os.path.basename(download_link)
+    debug_print(f"Downloading file: {appimage_filename}")
     subprocess.run(['wget', '-O', appimage_filename, download_link], check=True)
 
+    debug_print("Calculating SHA256 sum")
     with open(appimage_filename, 'rb') as f:
         new_sha256 = hashlib.sha256(f.read()).hexdigest()
+    debug_print(f"SHA256 sum: {new_sha256}")
     return new_sha256
 
 if __name__ == "__main__":
@@ -74,6 +63,6 @@ if __name__ == "__main__":
         
         with open('PKGBUILD', 'w') as f:
             f.write(updated_pkgbuild)
-        debug_print(f"PKGBUILD updated to version {check_output['aur_version']} with new download link")
+        debug_print(f"PKGBUILD updated to version {check_output['new_version']} (release {check_output['new_rel']}) with new download link")
     else:
         print("No update needed.")
