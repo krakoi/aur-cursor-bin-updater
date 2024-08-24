@@ -50,7 +50,7 @@ jobs:
         run: |
           if [ "${{ fromJson(steps.check.outputs.check_output).update_needed }}" != "true" ]; then
             echo "No update needed. Stopping workflow."
-            exit 78
+            exit 0
           fi
 
       - name: Update PKGBUILD
