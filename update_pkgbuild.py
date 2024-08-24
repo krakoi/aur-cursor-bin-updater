@@ -1,9 +1,9 @@
 import sys
 import re
-import subprocess
 import hashlib
 import json
 import os
+import requests
 
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
@@ -17,6 +17,11 @@ def calculate_sha256(file_path):
         for byte_block in iter(lambda: f.read(4096), b""):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
+
+def download_file(url, filename):
+    response = requests.get(url)
+    with open(filename, 'wb') as f:
+        f.write(response.content)
 
 def update_pkgbuild(pkgbuild, json_data):
     download_link = json_data['download_link']
@@ -35,8 +40,12 @@ def update_pkgbuild(pkgbuild, json_data):
     # Update noextract
     pkgbuild = re.sub(r'noextract=\(".*"\)', 'noextract=("$(basename ${source_x86_64[0]})")', pkgbuild)
 
-    # Calculate SHA256 sums
-    appimage_sha256 = calculate_sha256(os.path.basename(download_link))
+    # Download AppImage and calculate SHA256 sum
+    appimage_filename = os.path.basename(download_link)
+    download_file(download_link, appimage_filename)
+    appimage_sha256 = calculate_sha256(appimage_filename)
+
+    # Calculate SHA256 sum for cursor.png
     cursor_png_sha256 = calculate_sha256("cursor.png")
 
     # Update sha256sums_x86_64
