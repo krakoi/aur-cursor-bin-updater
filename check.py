@@ -28,30 +28,24 @@ def get_download_link():
     print(f"::debug::Data: {json.dumps(data, indent=2)}")
     
     try:
-        print("::debug::Sending request to get download link")
         response = requests.post(url, headers=headers, json=data)
-        print(f"::debug::Request sent. Waiting for response...")
         print(f"::debug::Response status code: {response.status_code}")
         print(f"::debug::Response headers: {json.dumps(dict(response.headers), indent=2)}")
+        print(f"::debug::Response content: {response.text}")
         
-        content_length = int(response.headers.get('Content-Length', 0))
-        print(f"::debug::Expected content length: {content_length} bytes")
+        response.raise_for_status()  # Raise an exception for bad status codes
         
-        print("::debug::Starting to receive response content...")
-        content = response.text
-        print(f"::debug::Received content length: {len(content)} bytes")
-        print(f"::debug::First 100 characters of content: {content[:100]}")
-        
-        print("::debug::Parsing JSON response...")
         response_json = response.json()
-        print("::debug::JSON parsed successfully")
-        
         download_url = response_json.get('cachedDownloadLink') or response_json.get('url')
         if not download_url:
-            print("::error::Download URL not found in response")
+            print(f"::error::Download URL not found in response. Response content: {response.text}")
+            return None
         return download_url
     except requests.exceptions.RequestException as e:
         print(f"::error::Request failed: {str(e)}")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"::error::Failed to parse JSON response: {str(e)}. Response content: {response.text}")
         return None
 
 def get_local_pkgbuild_info():
