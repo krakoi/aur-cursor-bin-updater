@@ -4,8 +4,9 @@ import re
 import sys
 import os
 import json
+import time
 
-def get_download_link():
+def get_download_link(max_retries=2):
     url = 'https://www.cursor.com/api/dashboard/get-download-link'
     headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
@@ -20,33 +21,39 @@ def get_download_link():
         'Sec-GPC': '1',
         'DNT': '1'
     }
-    data = {"platform": 5}  # Correct payload
+    data = {"platform": 5}  # Correct payload for Linux
     
-    print("::debug::Sending request to get download link")
-    print(f"::debug::URL: {url}")
-    print(f"::debug::Headers: {json.dumps(headers, indent=2)}")
-    print(f"::debug::Data: {json.dumps(data, indent=2)}")
+    for attempt in range(max_retries + 1):
+        try:
+            print(f"::debug::Attempt {attempt + 1} to get download link")
+            print(f"::debug::URL: {url}")
+            print(f"::debug::Headers: {json.dumps(headers, indent=2)}")
+            print(f"::debug::Data: {json.dumps(data, indent=2)}")
+            
+            response = requests.post(url, headers=headers, json=data)
+            print(f"::debug::Response status code: {response.status_code}")
+            print(f"::debug::Response headers: {json.dumps(dict(response.headers), indent=2)}")
+            print(f"::debug::Response content: {response.text}")
+            
+            response.raise_for_status()  # Raise an exception for bad status codes
+            
+            response_json = response.json()
+            download_url = response_json.get('cachedDownloadLink') or response_json.get('url')
+            if download_url:
+                return download_url
+            else:
+                print(f"::warning::Download URL not found in response. Response content: {response.text}")
+        except requests.exceptions.RequestException as e:
+            print(f"::warning::Request failed: {str(e)}")
+        except json.JSONDecodeError as e:
+            print(f"::warning::Failed to parse JSON response: {str(e)}. Response content: {response.text}")
+        
+        if attempt < max_retries:
+            print(f"::debug::Retrying in 5 seconds...")
+            time.sleep(5)
     
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        print(f"::debug::Response status code: {response.status_code}")
-        print(f"::debug::Response headers: {json.dumps(dict(response.headers), indent=2)}")
-        print(f"::debug::Response content: {response.text}")
-        
-        response.raise_for_status()  # Raise an exception for bad status codes
-        
-        response_json = response.json()
-        download_url = response_json.get('cachedDownloadLink') or response_json.get('url')
-        if not download_url:
-            print(f"::error::Download URL not found in response. Response content: {response.text}")
-            return None
-        return download_url
-    except requests.exceptions.RequestException as e:
-        print(f"::error::Request failed: {str(e)}")
-        return None
-    except json.JSONDecodeError as e:
-        print(f"::error::Failed to parse JSON response: {str(e)}. Response content: {response.text}")
-        return None
+    print("::error::Failed to get download link after all retry attempts")
+    return None
 
 def get_local_pkgbuild_info():
     with open('PKGBUILD', 'r') as file:
@@ -67,7 +74,7 @@ try:
     # Get the download link
     download_link = get_download_link()
     if not download_link:
-        raise ValueError("Failed to get download link")
+        raise ValueError("Failed to get download link after retries")
     
     print(f"::debug::Download link: {download_link}")
 
