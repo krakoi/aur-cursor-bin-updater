@@ -1,10 +1,9 @@
 import sys
 import re
-import subprocess
 import hashlib
 import json
 import os
-from packaging import version
+import requests
 
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
@@ -12,55 +11,82 @@ def debug_print(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)
 
-def update_pkgbuild(latest_version, current_version, current_rel):
-    if version.parse(latest_version) <= version.parse(current_version):
-        debug_print(f"No update needed. Current version {current_version} is not lower than latest version {latest_version}.")
-        return
+def calculate_sha256(file_path):
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
 
-    debug_print(f"Updating PKGBUILD from version {current_version} to {latest_version}")
+def download_file(url, filename):
+    response = requests.get(url)
+    with open(filename, 'wb') as f:
+        f.write(response.content)
 
-    # Read the current PKGBUILD
-    with open('PKGBUILD', 'r') as f:
-        pkgbuild = f.read()
+def update_pkgbuild(pkgbuild, json_data):
+    download_link = json_data['download_link']
+    new_version = json_data['new_version']
+    new_rel = json_data['new_rel']
 
     # Update pkgver
-    pkgbuild = re.sub(r'pkgver=.*', f'pkgver={latest_version}', pkgbuild)
+    pkgbuild = re.sub(r'pkgver=.*', f'pkgver={new_version}', pkgbuild)
 
-    # Reset pkgrel to 1 since we have a new version
-    pkgbuild = re.sub(r'pkgrel=\d+', 'pkgrel=1', pkgbuild)
+    # Update pkgrel
+    pkgbuild = re.sub(r'pkgrel=\d+', f'pkgrel={new_rel}', pkgbuild)
 
-    debug_print(f"Downloading AppImage for version {latest_version}")
-    # Download new AppImage
-    subprocess.run(['wget', '-O', f'cursor-{latest_version}.AppImage', 'https://downloader.cursor.sh/linux/appImage/x64'], check=True)
+    # Update source_x86_64 and add cursor.png
+    pkgbuild = re.sub(r'source_x86_64=\(".*"', f'source_x86_64=("{download_link}" "cursor.png"', pkgbuild)
 
-    # Calculate new SHA256
-    with open(f'cursor-{latest_version}.AppImage', 'rb') as f:
-        new_sha256 = hashlib.sha256(f.read()).hexdigest()
-    debug_print(f"New SHA256: {new_sha256}")
+    # Update noextract
+    pkgbuild = re.sub(r'noextract=\(".*"\)', 'noextract=("$(basename ${source_x86_64[0]})")', pkgbuild)
 
-    # Update source URL in PKGBUILD to point to our repository
-    artifact_url = f"https://github.com/Gunther-Schulz/aur-cursor-bin-updater/releases/download/v${{pkgver}}/cursor-${{pkgver}}.AppImage"
-    debug_print(f"New artifact URL: {artifact_url}")
-    
-    # Update source_x86_64
-    source_pattern = r'source_x86_64=\([^)]+\)'
-    new_source = f'source_x86_64=("{artifact_url}" "cursor.png")'
-    pkgbuild = re.sub(source_pattern, new_source, pkgbuild)
+    # Download AppImage and calculate SHA256 sum
+    appimage_filename = os.path.basename(download_link)
+    download_file(download_link, appimage_filename)
+    appimage_sha256 = calculate_sha256(appimage_filename)
+
+    # Calculate SHA256 sum for cursor.png
+    cursor_png_sha256 = calculate_sha256("cursor.png")
 
     # Update sha256sums_x86_64
-    sha256_pattern = r'sha256sums_x86_64=\([^)]+\)'
-    new_sha256sums = f"sha256sums_x86_64=('{new_sha256}' 'SKIP')"
-    pkgbuild = re.sub(sha256_pattern, new_sha256sums, pkgbuild)
+    pkgbuild = re.sub(r'sha256sums_x86_64=\(.*\)', f"sha256sums_x86_64=('{appimage_sha256}' '{cursor_png_sha256}')", pkgbuild)
 
-    # Write updated PKGBUILD
-    with open('PKGBUILD', 'w') as f:
-        f.write(pkgbuild)
+    # Replace the entire package() function
+    new_package_function = r'''
+package() {
+    install -Dm755 "${srcdir}/$(basename ${source_x86_64[0]})" "${pkgdir}/opt/${pkgname}/${pkgname}.AppImage"
 
-    debug_print(f"PKGBUILD updated to version {latest_version} with SHA256 {new_sha256}")
-    debug_print(f"AppImage file saved as cursor-{latest_version}.AppImage")
+    # Symlink executable to be called 'cursor'
+    mkdir -p "${pkgdir}/usr/bin"
+    ln -s "/opt/${pkgname}/${pkgname}.AppImage" "${pkgdir}/usr/bin/cursor"
 
-    debug_print("\nFinal PKGBUILD content:")
-    debug_print(pkgbuild)
+    # Install the icon
+    install -Dm644 "${srcdir}/cursor.png" "${pkgdir}/usr/share/icons/hicolor/512x512/apps/cursor.png"
+
+    # Create a .desktop Entry
+    mkdir -p "${pkgdir}/usr/share/applications"
+    cat <<EOF > "${pkgdir}/usr/share/applications/cursor.desktop"
+[Desktop Entry]
+Name=Cursor
+Exec=/usr/bin/cursor --no-sandbox %U
+Terminal=false
+Type=Application
+Icon=cursor
+StartupWMClass=cursor-url-handler
+X-AppImage-Version=${pkgver}
+MimeType=x-scheme-handler/cursor;
+Categories=Utility;
+EOF
+}
+'''
+    # Replace everything from package() to the end of the file
+    pkgbuild = re.sub(r'package\(\) \{.*', new_package_function.strip(), pkgbuild, flags=re.DOTALL)
+
+    # Add post_install() function if it doesn't exist
+    if 'post_install()' not in pkgbuild:
+        pkgbuild += '\n\npost_install() {\n    update-desktop-database -q\n    xdg-icon-resource forceupdate\n}'
+
+    return pkgbuild
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -74,11 +100,15 @@ if __name__ == "__main__":
     debug_print(f"Check output content: {json.dumps(check_output, indent=2)}")
     
     if check_output["update_needed"]:
-        debug_print("Update needed, calling update_pkgbuild()")
-        update_pkgbuild(
-            check_output["latest_version"],
-            check_output["current_version"],
-            check_output["current_rel"]
-        )
+        debug_print("Update needed, reading current PKGBUILD")
+        with open('PKGBUILD', 'r') as f:
+            current_pkgbuild = f.read()
+        
+        debug_print("Calling update_pkgbuild()")
+        updated_pkgbuild = update_pkgbuild(current_pkgbuild, check_output)
+        
+        with open('PKGBUILD', 'w') as f:
+            f.write(updated_pkgbuild)
+        debug_print(f"PKGBUILD updated to version {check_output['new_version']} (release {check_output['new_rel']}) with new download link")
     else:
         print("No update needed.")
