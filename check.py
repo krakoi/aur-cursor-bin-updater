@@ -54,28 +54,6 @@ def get_download_link():
         print(f"::error::Request failed: {str(e)}")
         return None
 
-def get_aur_pkgbuild_info(url):
-    response = requests.get(url)
-    response.raise_for_status()
-    pkgbuild_content = response.text
-    
-    version_match = re.search(r'pkgver=([^\n]+)', pkgbuild_content)
-    rel_match = re.search(r'pkgrel=(\d+)', pkgbuild_content)
-    source_match = re.search(r'source_x86_64=\("([^"]+)"', pkgbuild_content)
-    
-    if version_match and rel_match and source_match:
-        version = version_match.group(1).strip()
-        rel = rel_match.group(1)
-        source = source_match.group(1)
-        
-        # Replace ${pkgver} with actual version in the source URL
-        source = source.replace('${pkgver}', version)
-        
-        return version, rel, source
-    else:
-        print(f"::error::Unable to find current version, release, or source in AUR PKGBUILD")
-        return None, None, None
-
 def get_local_pkgbuild_info():
     with open('PKGBUILD', 'r') as file:
         content = file.read()
@@ -87,45 +65,40 @@ def get_local_pkgbuild_info():
         print(f"::error::Unable to find current version or release in local PKGBUILD")
         return None, None
 
-aur_url = 'https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=cursor-bin'
-
 try:
     # Check if DEBUG is set to true
     debug_mode = os.environ.get('DEBUG', '').lower() == 'true'
 
-    # Step 1: Get the download link
+    # Get the download link
     download_link = get_download_link()
     if not download_link:
         raise ValueError("Failed to get download link")
     
     print(f"::debug::Download link: {download_link}")
 
-    aur_version, aur_rel, aur_source = get_aur_pkgbuild_info(aur_url)
-    if aur_version is None or aur_rel is None or aur_source is None:
-        raise ValueError("Failed to get AUR version, release, or source")
-    
     local_version, local_rel = get_local_pkgbuild_info()
     if local_version is None or local_rel is None:
         raise ValueError("Failed to get local version or release")
 
-    print(f"::debug::AUR version: {aur_version}, release: {aur_rel}")
-    print(f"::debug::AUR source: {aur_source}")
     print(f"::debug::Local version: {local_version}, release: {local_rel}")
 
-    update_needed = debug_mode or download_link != aur_source or int(local_rel) > int(aur_rel)
+    # Extract version from download_link
+    version_match = re.search(r'cursor-(\d+\.\d+\.\d+)', download_link)
+    download_version = version_match.group(1) if version_match else None
 
-    # Extract new version from download_link
-    new_version_match = re.search(r'cursor-(\d+\.\d+\.\d+)', download_link)
-    new_version = new_version_match.group(1) if new_version_match else None
+    # Determine if update is needed
+    update_needed = debug_mode or (download_version and download_version != local_version)
 
-    # Determine new_rel
+    # Determine new_version and new_rel
     if update_needed:
-        if download_link != aur_source and new_version == aur_version:
-            new_rel = str(int(aur_rel) + 1)
+        new_version = download_version
+        if new_version == local_version:
+            new_rel = str(int(local_rel) + 1)
         else:
             new_rel = "1"
     else:
-        new_rel = aur_rel
+        new_version = local_version
+        new_rel = local_rel
 
     print(f"::debug::New version: {new_version}, new release: {new_rel}")
 
@@ -134,10 +107,7 @@ try:
         "update_needed": update_needed,
         "local_version": local_version,
         "local_rel": local_rel,
-        "aur_version": aur_version,
-        "aur_rel": aur_rel,
         "download_link": download_link,
-        "aur_source": aur_source,
         "new_version": new_version,
         "new_rel": new_rel
     }
