@@ -2,14 +2,14 @@
 
 pkgname=cursor-bin
 pkgver=0.39.6
-pkgrel=27
+pkgrel=1
 pkgdesc="Cursor App - AI-first coding environment"
 arch=('x86_64')
 url="https://www.cursor.com/"
 license=('custom:Proprietary')  # Replace with the correct license if known
 depends=('fuse2')
 options=(!strip)
-source_x86_64=("https://github.com/Gunther-Schulz/aur-cursor-bin-updater/releases/download/v${pkgver}/cursor-${pkgver}.AppImage" "cursor.png")
+source_x86_64=("https://download.todesktop.com/230313mzl4w4u92/cursor-0.39.6-build-240819ih4ta2fye-x86_64.AppImage" "cursor.png")
 noextract=("cursor-${pkgver}.AppImage")
 sha256sums_x86_64=('86e653cc8645018b4644c857182fb5b1dd25dace7dd7742458cf908c2b6c125d' 'SKIP')
 
