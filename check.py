@@ -59,11 +59,12 @@ def get_local_pkgbuild_info():
         content = file.read()
     version_match = re.search(r'pkgver=([^\n]+)', content)
     rel_match = re.search(r'pkgrel=(\d+)', content)
-    if version_match and rel_match:
-        return version_match.group(1).strip(), rel_match.group(1)
+    source_match = re.search(r'source_x86_64=\("([^"]+)"', content)
+    if version_match and rel_match and source_match:
+        return version_match.group(1).strip(), rel_match.group(1), source_match.group(1)
     else:
-        print(f"::error::Unable to find current version or release in local PKGBUILD")
-        return None, None
+        print(f"::error::Unable to find current version, release, or source in local PKGBUILD")
+        return None, None, None
 
 try:
     # Check if DEBUG is set to true
@@ -76,22 +77,22 @@ try:
     
     print(f"::debug::Download link: {download_link}")
 
-    local_version, local_rel = get_local_pkgbuild_info()
-    if local_version is None or local_rel is None:
-        raise ValueError("Failed to get local version or release")
+    local_version, local_rel, local_source = get_local_pkgbuild_info()
+    if local_version is None or local_rel is None or local_source is None:
+        raise ValueError("Failed to get local version, release, or source")
 
-    print(f"::debug::Local version: {local_version}, release: {local_rel}")
+    print(f"::debug::Local version: {local_version}, release: {local_rel}, source: {local_source}")
 
     # Extract version from download_link
     version_match = re.search(r'cursor-(\d+\.\d+\.\d+)', download_link)
     download_version = version_match.group(1) if version_match else None
 
     # Determine if update is needed
-    update_needed = debug_mode or (download_version and download_version != local_version)
+    update_needed = debug_mode or (download_version and download_version != local_version) or (download_link != local_source)
 
     # Determine new_version and new_rel
     if update_needed:
-        new_version = download_version
+        new_version = download_version if download_version else local_version
         if new_version == local_version:
             new_rel = str(int(local_rel) + 1)
         else:
@@ -107,6 +108,7 @@ try:
         "update_needed": update_needed,
         "local_version": local_version,
         "local_rel": local_rel,
+        "local_source": local_source,
         "download_link": download_link,
         "new_version": new_version,
         "new_rel": new_rel
