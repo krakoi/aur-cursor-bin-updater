@@ -5,55 +5,43 @@ import sys
 import os
 import json
 import time
+import yaml
 
 def get_download_link(max_retries=2):
-    url = 'https://www.cursor.com/api/dashboard/get-download-link'
+    url = 'https://download.todesktop.com/230313mzl4w4u92/latest-linux.yml'
     headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-        'Content-Type': 'application/json',
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.7',
-        'Origin': 'https://www.cursor.com',
-        'Referer': 'https://www.cursor.com/',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-origin',
-        'Sec-GPC': '1',
-        'DNT': '1'
     }
-    data = {"platform": 5}  # Correct payload for Linux
     
     for attempt in range(max_retries + 1):
         try:
             print(f"::debug::Attempt {attempt + 1} to get download link")
             print(f"::debug::URL: {url}")
-            print(f"::debug::Headers: {json.dumps(headers, indent=2)}")
-            print(f"::debug::Data: {json.dumps(data, indent=2)}")
             
-            response = requests.post(url, headers=headers, json=data)
+            response = requests.get(url, headers=headers)
             print(f"::debug::Response status code: {response.status_code}")
-            print(f"::debug::Response headers: {json.dumps(dict(response.headers), indent=2)}")
             print(f"::debug::Response content: {response.text}")
             
-            response.raise_for_status()  # Raise an exception for bad status codes
+            response.raise_for_status()
             
-            response_json = response.json()
-            download_url = response_json.get('cachedDownloadLink') or response_json.get('url')
-            if download_url:
-                return download_url
-            else:
-                print(f"::warning::Download URL not found in response. Response content: {response.text}")
+            yaml_data = yaml.safe_load(response.text)
+            file_name = yaml_data['files'][0]['url']
+            download_url = f"https://download.todesktop.com/230313mzl4w4u92/{file_name}"
+            version = yaml_data['version']
+            sha512 = yaml_data['files'][0]['sha512']
+            
+            return download_url, version, sha512
         except requests.exceptions.RequestException as e:
             print(f"::warning::Request failed: {str(e)}")
-        except json.JSONDecodeError as e:
-            print(f"::warning::Failed to parse JSON response: {str(e)}. Response content: {response.text}")
+        except (yaml.YAMLError, KeyError) as e:
+            print(f"::warning::Failed to parse YAML or extract data: {str(e)}")
         
         if attempt < max_retries:
             print(f"::debug::Retrying in 5 seconds...")
             time.sleep(5)
     
     print("::error::Failed to get download link after all retry attempts")
-    return None
+    return None, None, None
 
 def get_local_pkgbuild_info():
     with open('PKGBUILD', 'r') as file:
@@ -71,22 +59,20 @@ try:
     # Check if DEBUG is set to true
     debug_mode = os.environ.get('DEBUG', '').lower() == 'true'
 
-    # Get the download link
-    download_link = get_download_link()
+    # Get the download link, version, and sha512
+    download_link, download_version, download_sha512 = get_download_link()
     if not download_link:
         raise ValueError("Failed to get download link after retries")
     
     print(f"::debug::Download link: {download_link}")
+    print(f"::debug::Download version: {download_version}")
+    print(f"::debug::Download SHA512: {download_sha512}")
 
     local_version, local_rel, local_source = get_local_pkgbuild_info()
     if local_version is None or local_rel is None or local_source is None:
         raise ValueError("Failed to get local version, release, or source")
 
     print(f"::debug::Local version: {local_version}, release: {local_rel}, source: {local_source}")
-
-    # Extract version from download_link
-    version_match = re.search(r'cursor-(\d+\.\d+\.\d+)', download_link)
-    download_version = version_match.group(1) if version_match else None
 
     # Determine if update is needed
     update_needed = debug_mode or (download_version and download_version != local_version) or (download_link != local_source)
@@ -112,7 +98,9 @@ try:
         "local_source": local_source,
         "download_link": download_link,
         "new_version": new_version,
-        "new_rel": new_rel
+        "new_rel": new_rel,
+        "download_version": download_version,
+        "download_sha512": download_sha512
     }
 
     # Write JSON to file
