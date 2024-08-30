@@ -27,6 +27,7 @@ def update_pkgbuild(pkgbuild, json_data):
     download_link = json_data['download_link']
     new_version = json_data['new_version']
     new_rel = json_data['new_rel']
+    download_sha512 = json_data['download_sha512']
 
     # Update pkgver
     pkgbuild = re.sub(r'pkgver=.*', f'pkgver={new_version}', pkgbuild)
@@ -40,16 +41,8 @@ def update_pkgbuild(pkgbuild, json_data):
     # Update noextract
     pkgbuild = re.sub(r'noextract=\(".*"\)', 'noextract=("$(basename ${source_x86_64[0]})")', pkgbuild)
 
-    # Download AppImage and calculate SHA256 sum
-    appimage_filename = os.path.basename(download_link)
-    download_file(download_link, appimage_filename)
-    appimage_sha256 = calculate_sha256(appimage_filename)
-
-    # Calculate SHA256 sum for cursor.png
-    cursor_png_sha256 = calculate_sha256("cursor.png")
-
-    # Update sha256sums_x86_64
-    pkgbuild = re.sub(r'sha256sums_x86_64=\(.*\)', f"sha256sums_x86_64=('{appimage_sha256}' '{cursor_png_sha256}')", pkgbuild)
+    # Update sha512sums_x86_64
+    pkgbuild = re.sub(r'sha512sums_x86_64=\(.*\)', f"sha512sums_x86_64=('{download_sha512}' 'SKIP')", pkgbuild)
 
     # Replace the entire package() function
     new_package_function = r'''
