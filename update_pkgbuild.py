@@ -1,9 +1,7 @@
 import sys
-import re
-import hashlib
 import json
 import os
-import requests
+import base64
 
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
@@ -11,75 +9,38 @@ def debug_print(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)
 
-def calculate_sha256(file_path):
-    sha256_hash = hashlib.sha256()
-    with open(file_path, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
-    return sha256_hash.hexdigest()
+def base64_to_hex(base64_string):
+    return base64.b64decode(base64_string).hex()
 
-def download_file(url, filename):
-    response = requests.get(url)
-    with open(filename, 'wb') as f:
-        f.write(response.content)
-
-def update_pkgbuild(pkgbuild, json_data):
+def update_pkgbuild(pkgbuild_lines, json_data):
     download_link = json_data['download_link']
     new_version = json_data['new_version']
     new_rel = json_data['new_rel']
-    download_sha512 = json_data['download_sha512']
+    download_sha512 = base64_to_hex(json_data['download_sha512'])
+    cursor_png_checksum = 'f948c5718c2df7fe2cae0cbcd95fd3010ecabe77c699209d4af5438215daecd74b08e03d18d07a26112bcc5a80958105fda724768394c838d08465fce5f473e7'
 
-    # Update pkgver
-    pkgbuild = re.sub(r'pkgver=.*', f'pkgver={new_version}', pkgbuild)
+    updated_lines = []
+    in_sha = False
 
-    # Update pkgrel
-    pkgbuild = re.sub(r'pkgrel=\d+', f'pkgrel={new_rel}', pkgbuild)
+    for line in pkgbuild_lines:
+        if line.startswith('pkgver='):
+            updated_lines.append(f'pkgver={new_version}\n')
+        elif line.startswith('pkgrel='):
+            updated_lines.append(f'pkgrel={new_rel}\n')
+        elif line.startswith('source_x86_64='):
+            updated_lines.append(f'source_x86_64=("{download_link}" "cursor.png")\n')
+        elif line.startswith('noextract='):
+            updated_lines.append('noextract=("$(basename ${source_x86_64[0]})")\n')
+        elif line.startswith('sha512sums_x86_64='):
+            updated_lines.append(f"sha512sums_x86_64=('{download_sha512}'\n")
+            in_sha = True
+        elif in_sha and line.strip().endswith(')'):
+            updated_lines.append(f"                   '{cursor_png_checksum}')\n")
+            in_sha = False
+        elif not in_sha:
+            updated_lines.append(line)
 
-    # Update source_x86_64 and add cursor.png
-    pkgbuild = re.sub(r'source_x86_64=\(".*"', f'source_x86_64=("{download_link}" "cursor.png"', pkgbuild)
-
-    # Update noextract
-    pkgbuild = re.sub(r'noextract=\(".*"\)', 'noextract=("$(basename ${source_x86_64[0]})")', pkgbuild)
-
-    # Update sha512sums_x86_64
-    pkgbuild = re.sub(r'sha512sums_x86_64=\(.*\)', f"sha512sums_x86_64=('{download_sha512}' 'SKIP')", pkgbuild)
-
-    # Replace the entire package() function
-    new_package_function = r'''
-package() {
-    install -Dm755 "${srcdir}/$(basename ${source_x86_64[0]})" "${pkgdir}/opt/${pkgname}/${pkgname}.AppImage"
-
-    # Symlink executable to be called 'cursor'
-    mkdir -p "${pkgdir}/usr/bin"
-    ln -s "/opt/${pkgname}/${pkgname}.AppImage" "${pkgdir}/usr/bin/cursor"
-
-    # Install the icon
-    install -Dm644 "${srcdir}/cursor.png" "${pkgdir}/usr/share/icons/hicolor/512x512/apps/cursor.png"
-
-    # Create a .desktop Entry
-    mkdir -p "${pkgdir}/usr/share/applications"
-    cat <<EOF > "${pkgdir}/usr/share/applications/cursor.desktop"
-[Desktop Entry]
-Name=Cursor
-Exec=/usr/bin/cursor --no-sandbox %U
-Terminal=false
-Type=Application
-Icon=cursor
-StartupWMClass=cursor-url-handler
-X-AppImage-Version=${pkgver}
-MimeType=x-scheme-handler/cursor;
-Categories=Utility;
-EOF
-}
-'''
-    # Replace everything from package() to the end of the file
-    pkgbuild = re.sub(r'package\(\) \{.*', new_package_function.strip(), pkgbuild, flags=re.DOTALL)
-
-    # Add post_install() function if it doesn't exist
-    if 'post_install()' not in pkgbuild:
-        pkgbuild += '\n\npost_install() {\n    update-desktop-database -q\n    xdg-icon-resource forceupdate\n}'
-
-    return pkgbuild
+    return updated_lines
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -95,13 +56,14 @@ if __name__ == "__main__":
     if check_output["update_needed"]:
         debug_print("Update needed, reading current PKGBUILD")
         with open('PKGBUILD', 'r') as f:
-            current_pkgbuild = f.read()
+            current_pkgbuild = f.readlines()
         
         debug_print("Calling update_pkgbuild()")
         updated_pkgbuild = update_pkgbuild(current_pkgbuild, check_output)
         
+        # Write the changes to the file
         with open('PKGBUILD', 'w') as f:
-            f.write(updated_pkgbuild)
-        debug_print(f"PKGBUILD updated to version {check_output['new_version']} (release {check_output['new_rel']}) with new download link")
+            f.writelines(updated_pkgbuild)
+        debug_print(f"PKGBUILD updated to version {check_output['new_version']} (release {check_output['new_rel']}) with new download link and SHA512")
     else:
         print("No update needed.")
