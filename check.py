@@ -55,6 +55,23 @@ def get_local_pkgbuild_info():
         print(f"::error::Unable to find current version, release, or source in local PKGBUILD")
         return None, None, None
 
+def get_aur_pkgbuild_info():
+    url = 'https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=cursor-bin'
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        content = response.text
+        version_match = re.search(r'pkgver=([^\n]+)', content)
+        rel_match = re.search(r'pkgrel=(\d+)', content)
+        if version_match and rel_match:
+            return version_match.group(1).strip(), rel_match.group(1)
+        else:
+            print(f"::warning::Unable to find version or release in AUR PKGBUILD")
+            return None, None
+    except Exception as e:
+        print(f"::warning::Error fetching AUR PKGBUILD: {str(e)}")
+        return None, None
+
 try:
     # Check if DEBUG is set to true
     debug_mode = os.environ.get('DEBUG', '').lower() == 'true'
@@ -75,7 +92,14 @@ try:
     print(f"::debug::Local version: {local_version}, release: {local_rel}, source: {local_source}")
 
     # Determine if update is needed
-    update_needed = debug_mode or (download_version and download_version != local_version) or (download_link != local_source)
+    aur_version, aur_rel = get_aur_pkgbuild_info()
+    print(f"::debug::AUR version: {aur_version}, release: {aur_rel}")
+    update_needed = (
+        debug_mode or 
+        (download_version and download_version != local_version) or 
+        (download_link != local_source) or
+        (aur_version == local_version and aur_rel and local_rel and int(local_rel) > int(aur_rel))
+    )
 
     # Determine new_version and new_rel
     if update_needed:
@@ -100,7 +124,9 @@ try:
         "new_version": new_version,
         "new_rel": new_rel,
         "download_version": download_version,
-        "download_sha512": download_sha512
+        "download_sha512": download_sha512,
+        "aur_version": aur_version,
+        "aur_rel": aur_rel
     }
 
     # Write JSON to file
