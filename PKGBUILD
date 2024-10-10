@@ -1,7 +1,7 @@
 # Maintainer: Your Name <your.email@example.com>
 
 pkgname=cursor-bin
-pkgver=0.41.3
+pkgver=0.42.0
 pkgrel=1
 pkgdesc="Cursor App - AI-first coding environment"
 arch=('x86_64')
@@ -9,9 +9,9 @@ url="https://www.cursor.com/"
 license=('custom:Proprietary')  # Replace with the correct license if known
 depends=('fuse2')
 options=(!strip)
-source_x86_64=("https://download.todesktop.com/230313mzl4w4u92/cursor-0.41.3-build-240925fkhcqg263-x86_64.AppImage" "cursor.png")
+source_x86_64=("https://download.todesktop.com/230313mzl4w4u92/cursor-0.42.0-build-241009fij7nohn5-x86_64.AppImage" "cursor.png")
 noextract=("$(basename ${source_x86_64[0]})")
-sha512sums_x86_64=('34e9e401a5c82df2296fc19d5a8af7ac0dc81a8ff98a5f8f03c02855c8d299e0202ca56cbb8b2cb070c835248d649d81e13cc4706ca0f936dc30d3ef545fd9d5'
+sha512sums_x86_64=('a41db7c99b72bd9ea4518b9bdd51ed5ad374bd5dfa1c07b2e8ed34c423be1e5398f2557a2990d3b8c1f9048bba62d1b4a004f6ae1aa2ddb5fde3e9037e6d38bf'
                    'f948c5718c2df7fe2cae0cbcd95fd3010ecabe77c699209d4af5438215daecd74b08e03d18d07a26112bcc5a80958105fda724768394c838d08465fce5f473e7')
 package() {
     install -Dm755 "${srcdir}/$(basename ${source_x86_64[0]})" "${pkgdir}/opt/${pkgname}/${pkgname}.AppImage"
