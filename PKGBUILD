@@ -25,7 +25,7 @@ package() {
 
     # Create a .desktop Entry
     mkdir -p "${pkgdir}/usr/share/applications"
-    cat <<EOF > "${pkgdir}/usr/share/applications/cursor.desktop"
+    cat <<EOF > "${pkgdir}/usr/share/applications/cursor-cursor.desktop"
 [Desktop Entry]
 Name=Cursor
 Exec=/usr/bin/cursor --no-sandbox %U
@@ -35,7 +35,7 @@ Icon=cursor
 StartupWMClass=cursor-url-handler
 X-AppImage-Version=${pkgver}
 MimeType=x-scheme-handler/cursor;
-Categories=Utility;
+Categories=Utility;TextEditor;Development;IDE
 EOF
 }
 
