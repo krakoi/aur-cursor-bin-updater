@@ -32,7 +32,8 @@ Exec=/usr/bin/cursor --no-sandbox %U
 Terminal=false
 Type=Application
 Icon=cursor
-StartupWMClass=Cursor
+# Change the class below to "Cursor" when on X11
+StartupWMClass=cursor-url-handler
 X-AppImage-Version=${pkgver}
 MimeType=x-scheme-handler/cursor;
 Categories=Utility;TextEditor;Development;IDE
