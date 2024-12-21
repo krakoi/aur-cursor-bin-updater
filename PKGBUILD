@@ -20,7 +20,7 @@ sha512sums_x86_64=('31a095051e70a4d5c35e396aad108fd85de99c9a234f51f7d2a2d3eefb5c
 prepare() {
     # Set correct version in .desktop file
     sed "s/@@PKGVERSION@@/${pkgver}/g" "${srcdir}/${pkgname}.desktop.in" > "${srcdir}/cursor-cursor.desktop"
-
+}
 
 package() {
     # Create directories
