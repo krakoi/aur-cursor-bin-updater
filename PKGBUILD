@@ -1,8 +1,8 @@
 # Maintainer: Your Name <your.email@example.com>
 
 pkgname=cursor-bin
-pkgver=0.44.5
-pkgrel=1
+pkgver=0.44.6
+pkgrel=2
 pkgdesc="Cursor App - AI-first coding environment"
 arch=('x86_64')
 url="https://www.cursor.com/"
@@ -20,7 +20,7 @@ sha512sums_x86_64=('27e3d576446d2c9042e8d413e260a8cdda09f8829107fe618660fda0c6da
 prepare() {
     # Set correct version in .desktop file
     sed "s/@@PKGVERSION@@/${pkgver}/g" "${srcdir}/${pkgname}.desktop.in" > "${srcdir}/cursor-cursor.desktop"
-}
+
 
 package() {
     # Create directories
