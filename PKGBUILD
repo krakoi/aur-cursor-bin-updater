@@ -2,7 +2,7 @@
 
 pkgname=cursor-bin
 pkgver=0.44.6
-pkgrel=2
+pkgrel=3
 pkgdesc="Cursor App - AI-first coding environment"
 arch=('x86_64')
 url="https://www.cursor.com/"
@@ -10,9 +10,9 @@ license=('custom:Proprietary')  # Replace with the correct license if known
 depends=('fuse2')
 options=(!strip)
 _appimage="${pkgname}-${pkgver}.AppImage"
-source_x86_64=("${_appimage}::https://download.todesktop.com/230313mzl4w4u92/cursor-0.44.5-build-241220s3ux0e1tv-x86_64.AppImage" "cursor.png" "${pkgname}.desktop.in" "${pkgname}.sh")
+source_x86_64=("${_appimage}::https://download.todesktop.com/230313mzl4w4u92/cursor-0.44.6-build-2412214pmryneua-x86_64.AppImage" "cursor.png" "${pkgname}.desktop.in" "${pkgname}.sh")
 noextract=("${_appimage}")
-sha512sums_x86_64=('27e3d576446d2c9042e8d413e260a8cdda09f8829107fe618660fda0c6da3e2638949bdeeb94259157ad178217b9bc4b3f8d0e6095cd5acbf9d76d8b5fd8a116'
+sha512sums_x86_64=('31a095051e70a4d5c35e396aad108fd85de99c9a234f51f7d2a2d3eefb5c5be7453d9964553e380d32514e1c2e75e49d272ee48389a1619554785418d8bceaf1'
                    'f948c5718c2df7fe2cae0cbcd95fd3010ecabe77c699209d4af5438215daecd74b08e03d18d07a26112bcc5a80958105fda724768394c838d08465fce5f473e7'
                    'e7e355524db7ddca2e02351f5af6ade791646b42434400f03f84e1068a43aadaa469ba6d5acbc16e6a3a7e52be4807b498585bea3f566e19b66414f6c3095154'
                    'ec3fa93a7df3ac97720d57e684f8745e3e34f39d9976163ea0001147961ca4caeb369de9d1e80c877bb417a0f1afa49547d154dde153be7fe6615092894cff47')
