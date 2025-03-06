@@ -114,8 +114,7 @@ try:
     aur_version, aur_rel = get_aur_pkgbuild_info()
     print(f"::debug::AUR version: {aur_version}, release: {aur_rel}")
     update_needed = (
-        debug_mode
-        or (download_version and download_version != local_version)
+        (download_version and download_version != local_version)
         or (download_link != local_source)
         or (
             aur_version == local_version
