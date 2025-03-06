@@ -26,10 +26,9 @@ def get_download_link(max_retries=2):
             response.raise_for_status()
 
             data = response.json()
-            version = data["name"]
-            commit_hash = data["url"].split("/")[4]
+            version = data["version"]
 
-            download_url = f"https://anysphere-binaries.s3.us-east-1.amazonaws.com/production/{commit_hash}/linux/x64/Cursor-linux-x64.AppImage"
+            download_url = f"https://anysphere-binaries.s3.us-east-1.amazonaws.com/production/latest/linux/x64/Cursor-linux-x64.AppImage"
 
             sha512 = data.get("sha512", "")
 
