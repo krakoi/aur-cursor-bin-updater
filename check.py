@@ -55,7 +55,7 @@ def get_download_link(max_retries=2):
             # Use the new URL pattern with commit hash from Darwin API
             download_url = f"https://anysphere-binaries.s3.us-east-1.amazonaws.com/production/client/linux/x64/appimage/Cursor-{version}-{commit_hash}.deb.glibc2.25-x86_64.AppImage"
 
-            return download_url, f"{version}_{commit_hash}", None
+            return download_url, version, None  # Just return the version number
         except requests.exceptions.RequestException as e:
             print(f"::warning::Request failed: {str(e)}")
         except (json.JSONDecodeError, KeyError) as e:
