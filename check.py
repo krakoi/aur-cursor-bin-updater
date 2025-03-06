@@ -6,6 +6,20 @@ import os
 import json
 import time
 import yaml
+import hashlib
+
+
+def calculate_sha512(url):
+    """Download file and calculate its SHA512."""
+    print("::debug::Downloading file to calculate SHA512...")
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+
+    sha512_hash = hashlib.sha512()
+    for chunk in response.iter_content(chunk_size=8192):
+        sha512_hash.update(chunk)
+
+    return sha512_hash.hexdigest()
 
 
 def get_download_link(max_retries=2):
@@ -40,9 +54,8 @@ def get_download_link(max_retries=2):
 
             # Use the new URL pattern with commit hash from Darwin API
             download_url = f"https://anysphere-binaries.s3.us-east-1.amazonaws.com/production/client/linux/x64/appimage/Cursor-{version}-{commit_hash}.deb.glibc2.25-x86_64.AppImage"
-            sha512 = linux_data.get("sha512", "")
 
-            return download_url, f"{version},{commit_hash}", sha512
+            return download_url, f"{version}-{commit_hash}", None
         except requests.exceptions.RequestException as e:
             print(f"::warning::Request failed: {str(e)}")
         except (json.JSONDecodeError, KeyError) as e:
