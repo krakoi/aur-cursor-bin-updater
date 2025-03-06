@@ -9,30 +9,40 @@ import yaml
 
 
 def get_download_link(max_retries=2):
-    url = "https://api2.cursor.sh/updates/api/update/linux-x64/cursor/0.0.0/"
+    linux_url = "https://api2.cursor.sh/updates/api/update/linux-x64/cursor/0.0.0/"
+    # WORKAROUND: Using Darwin API to get commit hash since Linux API doesn't provide it.
+    # This assumes both platforms use the same commit hash for releases.
+    # TODO: Find a better way to get Linux-specific commit hash when available
+    darwin_url = "https://api2.cursor.sh/updates/api/update/darwin-x64/cursor/0.0.0/"
     headers = {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
     }
 
     for attempt in range(max_retries + 1):
         try:
-            print(f"::debug::Attempt {attempt + 1} to get download link")
-            print(f"::debug::URL: {url}")
+            # Get version from Linux API
+            print("::debug::Making request to:", linux_url)
+            linux_response = requests.get(linux_url, headers=headers)
+            linux_data = linux_response.json()
+            print("::debug::Linux API response:", json.dumps(linux_data, indent=2))
+            linux_response.raise_for_status()
+            version = linux_data["version"]
 
-            response = requests.get(url, headers=headers)
-            print(f"::debug::Response status code: {response.status_code}")
-            print(f"::debug::Response content: {response.text}")
+            # Get commit hash from Darwin API
+            print("::debug::Making request to:", darwin_url)
+            darwin_response = requests.get(darwin_url, headers=headers)
+            darwin_data = darwin_response.json()
+            print("::debug::Darwin API response:", json.dumps(darwin_data, indent=2))
+            darwin_response.raise_for_status()
 
-            response.raise_for_status()
+            # Extract commit hash from Darwin URL
+            commit_hash = darwin_data["url"].split("/")[4]
 
-            data = response.json()
-            version = data["version"]
+            # Use the new URL pattern with commit hash from Darwin API
+            download_url = f"https://anysphere-binaries.s3.us-east-1.amazonaws.com/production/client/linux/x64/appimage/Cursor-{version}-{commit_hash}.deb.glibc2.25-x86_64.AppImage"
+            sha512 = linux_data.get("sha512", "")
 
-            download_url = f"https://anysphere-binaries.s3.us-east-1.amazonaws.com/production/latest/linux/x64/Cursor-linux-x64.AppImage"
-
-            sha512 = data.get("sha512", "")
-
-            return download_url, version, sha512
+            return download_url, f"{version},{commit_hash}", sha512
         except requests.exceptions.RequestException as e:
             print(f"::warning::Request failed: {str(e)}")
         except (json.JSONDecodeError, KeyError) as e:
