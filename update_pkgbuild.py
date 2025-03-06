@@ -30,6 +30,15 @@ def calculate_sha512(url):
     return sha512_hash.hexdigest()
 
 
+def calculate_file_sha512(filepath):
+    """Calculate SHA512 of a local file."""
+    sha512_hash = hashlib.sha512()
+    with open(filepath, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            sha512_hash.update(chunk)
+    return sha512_hash.hexdigest()
+
+
 def update_pkgbuild(pkgbuild_lines, json_data):
     download_link = json_data["download_link"]
     new_version = json_data["new_version"]
@@ -39,9 +48,10 @@ def update_pkgbuild(pkgbuild_lines, json_data):
     download_sha512 = calculate_sha512(download_link)
     debug_print(f"Calculated SHA512: {download_sha512}")
 
-    cursor_png_checksum = "f948c5718c2df7fe2cae0cbcd95fd3010ecabe77c699209d4af5438215daecd74b08e03d18d07a26112bcc5a80958105fda724768394c838d08465fce5f473e7"
-    cursor_desktop_checksum = "e7e355524db7ddca2e02351f5af6ade791646b42434400f03f84e1068a43aadaa469ba6d5acbc16e6a3a7e52be4807b498585bea3f566e19b66414f6c3095154"
-    cursor_launcher_checksum = "ec3fa93a7df3ac97720d57e684f8745e3e34f39d9976163ea0001147961ca4caeb369de9d1e80c877bb417a0f1afa49547d154dde153be7fe6615092894cff47"
+    # Calculate checksums for static files
+    cursor_png_checksum = calculate_file_sha512("cursor.png")
+    cursor_desktop_checksum = calculate_file_sha512("cursor-bin.desktop.in")
+    cursor_launcher_checksum = calculate_file_sha512("cursor-bin.sh")
 
     updated_lines = []
     in_sha = False
