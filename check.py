@@ -126,21 +126,27 @@ try:
     # Determine if update is needed
     aur_version, aur_rel = get_aur_pkgbuild_info()
     print(f"::debug::AUR version: {aur_version}, release: {aur_rel}")
+
+    # Check if this is a manual release update
+    is_manual_rel_update = (
+        aur_version == local_version
+        and aur_rel
+        and local_rel
+        and int(local_rel) > int(aur_rel)
+    )
+
     update_needed = (
         (download_version and download_version != local_version)
         or (download_link != local_source)
-        or (
-            aur_version == local_version
-            and aur_rel
-            and local_rel
-            and int(local_rel) > int(aur_rel)
-        )
+        or is_manual_rel_update
     )
 
     # Determine new_version and new_rel
     if update_needed:
         new_version = download_version if download_version else local_version
-        if new_version == local_version:
+        if is_manual_rel_update:
+            new_rel = local_rel  # Keep the manually set release number
+        elif new_version == local_version:
             new_rel = str(int(local_rel) + 1)
         else:
             new_rel = "1"

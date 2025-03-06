@@ -1,4 +1,4 @@
-# Maintainer: Your Name <your.email@example.com>
+# Maintainer: Gunther Schulz <dev@guntherschulz.de>
 
 pkgname=cursor-bin
 pkgver=0.46.9
