@@ -23,54 +23,49 @@ def calculate_sha512(url):
 
 
 def get_download_link(max_retries=2):
-    # The Linux API endpoint no longer returns data, so we'll only use the Darwin endpoint
-    darwin_url = "https://api2.cursor.sh/updates/api/update/darwin-x64/cursor/0.0.0/"
+    cursor_url = "https://www.cursor.com/api/download?platform=linux-x64&releaseTrack=latest"
     headers = {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+        " (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
     }
 
     for attempt in range(max_retries + 1):
         try:
-            # Get both version and commit hash from Darwin API
-            print("::debug::Making request to:", darwin_url)
-            darwin_response = requests.get(darwin_url, headers=headers)
-            print(f"::debug::Darwin API status code: {darwin_response.status_code}")
-            print(f"::debug::Darwin API raw response: {darwin_response.text}")
+            print("::debug::Making request to:", cursor_url)
+            response = requests.get(cursor_url, headers=headers)
+            print(f"::debug::API status code: {response.status_code}")
+            print(f"::debug::API raw response: {response.text}")
 
-            # Only try to parse JSON if we got a successful response
-            if darwin_response.status_code == 200 and darwin_response.text.strip():
-                darwin_data = darwin_response.json()
-                print(
-                    "::debug::Darwin API response:", json.dumps(darwin_data, indent=2)
-                )
-                darwin_response.raise_for_status()
+            if response.status_code == 200 and response.text.strip():
+                data = response.json()
+                print("::debug::API response:", json.dumps(data, indent=2))
+                response.raise_for_status()
 
-                # Extract version from the 'name' field
-                version = darwin_data["name"]
+                download_url = data["downloadUrl"]
+                # Extract version from the download URL
+                # Format: Cursor-0.47.4-<hash>.deb.glibc2.25-x86_64.AppImage
+                version_match = re.search(r"Cursor-([0-9.]+)-", download_url)
+                if version_match:
+                    version = version_match.group(1)
+                    return download_url, version, None
+                else:
+                    raise ValueError("Could not extract version from download URL")
 
-                # Extract commit hash from Darwin URL
-                # The URL format is like: https://anysphere-binaries.s3.us-east-1.amazonaws.com/production/ae378be9dc2f5f1a6a1a220c6e25f9f03c8d4e19/darwin/x64/Cursor-darwin-x64.zip
-                url_parts = darwin_data["url"].split("/")
-                commit_hash = url_parts[
-                    4
-                ]  # The commit hash is the 5th part of the URL (index 4)
-
-                # Construct the Linux download URL using the version and commit hash
-                download_url = f"https://anysphere-binaries.s3.us-east-1.amazonaws.com/production/client/linux/x64/appimage/Cursor-{version}-{commit_hash}.deb.glibc2.25-x86_64.AppImage"
-
-                return download_url, version, None  # Just return the version number
             else:
-                print("::warning::Invalid response from Darwin API")
+                print("::warning::Invalid response from Cursor API")
                 raise requests.exceptions.RequestException(
-                    "Invalid response from Darwin API"
+                    "Invalid response from Cursor API"
                 )
+
         except requests.exceptions.RequestException as e:
             print(f"::warning::Request failed: {str(e)}")
         except (json.JSONDecodeError, KeyError) as e:
             print(f"::warning::Failed to parse JSON or extract data: {str(e)}")
+        except ValueError as e:
+            print(f"::warning::{str(e)}")
 
         if attempt < max_retries:
-            print(f"::debug::Retrying in 5 seconds...")
+            print("::debug::Retrying in 5 seconds...")
             time.sleep(5)
 
     print("::error::Failed to get download link after all retry attempts")
