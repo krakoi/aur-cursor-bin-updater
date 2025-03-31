@@ -7,6 +7,7 @@ import json
 import time
 import yaml
 import hashlib
+from packaging import version
 
 
 def calculate_sha512(url):
@@ -105,6 +106,15 @@ def get_aur_pkgbuild_info():
         return None, None
 
 
+def compare_versions(version1, version2):
+    """Compare two version strings and return True if version1 is higher than version2."""
+    try:
+        return version.parse(version1) > version.parse(version2)
+    except version.InvalidVersion:
+        print(f"::warning::Invalid version format: {version1} or {version2}")
+        return False
+
+
 try:
     # Check if DEBUG is set to true
     debug_mode = os.environ.get("DEBUG", "").lower() == "true"
@@ -138,8 +148,15 @@ try:
         and int(local_rel) > int(aur_rel)
     )
 
+    # Only update if the new version is higher than the current version
+    version_update_needed = (
+        download_version
+        and download_version != local_version
+        and compare_versions(download_version, local_version)
+    )
+
     update_needed = (
-        (download_version and download_version != local_version)
+        version_update_needed
         or (download_link != local_source)
         or is_manual_rel_update
     )
